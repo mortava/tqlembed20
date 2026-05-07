@@ -1,0 +1,34 @@
+TQL Non-QM Lending Guidelines - Sample Document
+
+DSCR Loan Program:
+- Minimum DSCR: 1.00x (no-ratio allowed for certain scenarios)
+- Loan amounts: $150,000 - $3,000,000
+- LTV: Up to 80% purchase, 75% rate/term refi, 70% cash-out
+- Credit score: 620 minimum
+- Property types: SFR, 2-4 units, condos, townhomes
+
+Bank Statement Program:
+- 12 or 24 months personal or business bank statements
+- Self-employed borrowers only
+- Loan amounts: $150,000 - $3,000,000
+- LTV: Up to 85% purchase
+- Credit score: 640 minimum
+
+Asset Depletion Program:
+- Qualify using liquid assets divided over loan term
+- No income documentation required
+- Minimum assets: 110% of loan amount
+- LTV: Up to 70%
+- Credit score: 680 minimum
+
+Cross Collateral Program:
+- Use equity from existing properties as down payment
+- No cash required from borrower
+- Combined LTV: Up to 75%
+- Minimum 2 properties required
+
+Rate Lock Policy:
+- 30-day locks available at par
+- 45-day locks: +0.125 adjustment
+- 60-day locks: +0.250 adjustment
+- Extension available at 0.125/15 days
