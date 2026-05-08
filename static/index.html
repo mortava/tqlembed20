@@ -396,7 +396,7 @@
         onkeydown="onKey(event)"
         oninput="autoResize(this)"
       ></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendQuery()" disabled title="Send">
+      <button class="send-btn" id="sendBtn" onclick="sendQuery()" title="Send">
         <span class="send-arrow"></span>
       </button>
     </div>
@@ -531,7 +531,19 @@ async function createStore() {
 function onFileSelect(e) { uploadFiles(Array.from(e.target.files)); }
 
 async function uploadFiles(files) {
-  if (!currentStore) { toast('Select a store first'); return; }
+  if (!currentStore) {
+    try {
+      const cr = await fetch('/api/stores', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({display_name: 'Quinn Default'}),
+      });
+      const nd = await cr.json();
+      currentStore = nd.name;
+    } catch {
+      toast('Could not connect to server'); return;
+    }
+  }
   const statusEl = document.getElementById('uploadStatus');
   const statusTx = document.getElementById('uploadText');
   statusEl.style.display = 'flex';
@@ -613,7 +625,19 @@ function addAIMsg(text, citations) {
 
 async function sendQuery() {
   if (isQuerying) return;
-  if (!currentStore) { toast('Select a store first'); return; }
+  if (!currentStore) {
+    try {
+      const cr = await fetch('/api/stores', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({display_name: 'Quinn Default'}),
+      });
+      const nd = await cr.json();
+      currentStore = nd.name;
+    } catch {
+      toast('Could not connect to server'); return;
+    }
+  }
   const input = document.getElementById('queryInput');
   const q = input.value.trim();
   if (!q) return;
@@ -660,7 +684,7 @@ document.getElementById('newStoreModal').addEventListener('click', e => {
 document.getElementById('queryInput').addEventListener('input', () => {
   const btn = document.getElementById('sendBtn');
   const val = document.getElementById('queryInput').value.trim();
-  btn.disabled = !val || !currentStore;
+  btn.disabled = !val;
 });
 
 /* ── Init: auto-select or auto-create default store ── */
