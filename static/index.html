@@ -350,13 +350,9 @@
   <header>
     <span class="logo">Quinn</span>
 
-    <div class="status-dot" id="statusDot" title="No store selected"></div>
-
-    <select class="store-select" id="storeSelect" onchange="onStoreChange()">
+    <select id="storeSelect" style="display:none" onchange="onStoreChange()">
       <option value="">Select store…</option>
     </select>
-
-    <button class="btn-icon" title="New store" onclick="openModal()">＋</button>
 
     <button class="btn-icon" title="Upload document" onclick="document.getElementById('fileInput').click()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -500,15 +496,10 @@ function onStoreChange() {
   currentStore = val || null;
   const btn = document.getElementById('sendBtn');
   btn.disabled = !currentStore;
-  setDot(currentStore ? 'ready' : '');
+
   if (currentStore) sysMsg('Store connected. Ask a question or upload a document.');
 }
 
-function setDot(state) {
-  const d = document.getElementById('statusDot');
-  d.className = 'status-dot' + (state ? ' ' + state : '');
-  d.title = state === 'ready' ? 'Store ready' : state === 'loading' ? 'Processing…' : 'No store selected';
-}
 
 function openModal() {
   document.getElementById('newStoreModal').classList.add('open');
@@ -544,7 +535,7 @@ async function uploadFiles(files) {
   const statusEl = document.getElementById('uploadStatus');
   const statusTx = document.getElementById('uploadText');
   statusEl.style.display = 'flex';
-  setDot('loading');
+
 
   for (const file of files) {
     statusTx.textContent = `Uploading ${file.name}…`;
@@ -561,7 +552,7 @@ async function uploadFiles(files) {
   }
 
   statusEl.style.display = 'none';
-  setDot('ready');
+
   document.getElementById('fileInput').value = '';
 }
 
@@ -631,7 +622,7 @@ async function sendQuery() {
   input.style.height = 'auto';
   isQuerying = true;
   document.getElementById('sendBtn').disabled = true;
-  setDot('loading');
+
   addUserMsg(q);
   addTyping();
 
@@ -651,7 +642,7 @@ async function sendQuery() {
 
   isQuerying = false;
   document.getElementById('sendBtn').disabled = false;
-  setDot('ready');
+
 }
 
 /* ── Keyboard ── */
