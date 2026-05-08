@@ -3,555 +3,419 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quinn — Gemini RAG Agent</title>
+  <title>Quinn</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600&display=swap" rel="stylesheet" />
   <style>
-    /* ── Quinn Design Tokens ── */
     :root {
-      --primary: #000000;
-      --on-primary: #ffffff;
-      --ink: #000000;
-      --ink-deep: #090909;
+      --primary: #000;
+      --on-primary: #fff;
+      --ink: #000;
       --charcoal: #525252;
       --body-color: #737373;
       --mute: #a3a3a3;
-      --canvas: #ffffff;
-      --surface-soft: #fafafa;
+      --canvas: #fff;
+      --surface-soft: #f4f4f4;
       --hairline: #e5e5e5;
       --hairline-strong: #d4d4d4;
-      --on-dark: #ffffff;
-      --on-dark-mute: rgba(255,255,255,0.7);
       --surface-dark: #171717;
+      --on-dark: #fff;
       --focus-ring: rgba(59,130,246,0.5);
-      --terminal-red: #ff5f56;
-      --terminal-yellow: #ffbd2e;
-      --terminal-green: #27c93f;
+      --input-bg: #f4f4f4;
     }
 
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    html, body {
+      height: 100%;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
       background: var(--canvas);
       color: var(--ink);
-      font-size: 16px;
-      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Buttons ── */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      border: none; cursor: pointer;
-      font-family: ui-sans-serif, system-ui, sans-serif;
-      font-size: 14px; font-weight: 500; line-height: 1;
-      border-radius: 9999px; padding: 8px 20px; height: 36px; gap: 6px;
-      transition: background 0.1s, opacity 0.1s;
-      white-space: nowrap;
+    /* ── Shell ── */
+    .shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 800px;
+      margin: 0 auto;
     }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-primary  { background: var(--primary); color: var(--on-primary); }
-    .btn-primary:not(:disabled):hover  { background: var(--ink-deep); }
-    .btn-secondary {
-      background: var(--canvas); color: var(--ink);
-      border: 1px solid var(--hairline-strong);
-    }
-    .btn-secondary:not(:disabled):hover { background: var(--surface-soft); }
-    .btn-on-dark  { background: var(--canvas); color: var(--ink); border-radius: 9999px; padding: 8px 20px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; }
-    .btn-sm       { height: 30px; padding: 5px 14px; font-size: 12px; }
 
-    /* ── Nav ── */
-    nav {
-      background: var(--canvas);
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
       border-bottom: 1px solid var(--hairline);
-      height: 56px;
-      display: flex; align-items: center;
-      padding: 0 24px; gap: 20px;
-      position: sticky; top: 0; z-index: 100;
+      flex-shrink: 0;
+      background: var(--canvas);
     }
-    .nav-logo {
-      font-family: 'Nunito', system-ui, sans-serif;
-      font-size: 20px; font-weight: 600;
-      color: var(--ink); text-decoration: none; margin-right: auto;
-    }
-    .nav-links { display: flex; gap: 20px; align-items: center; }
-    .nav-links a {
-      font-size: 14px; font-weight: 500; color: var(--ink);
-      text-decoration: none; white-space: nowrap;
-    }
-    .nav-links a:hover { color: var(--charcoal); }
 
-    /* ── Layout ── */
-    .container       { max-width: 720px;  margin: 0 auto; padding: 0 24px; }
-    .container-wide  { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+    .logo {
+      font-family: 'Nunito', system-ui, sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+      margin-right: auto;
+    }
 
-    /* ── Hero ── */
-    .hero {
-      text-align: center;
-      padding: 88px 24px;
-      max-width: 720px; margin: 0 auto;
-    }
-    .hero-q {
-      font-family: 'Nunito', system-ui, sans-serif;
-      font-size: 96px; font-weight: 600; line-height: 1;
-      display: block; margin-bottom: 24px; color: var(--ink);
-    }
-    .hero-title {
-      font-family: 'Nunito', system-ui, sans-serif;
-      font-size: 36px; font-weight: 500; line-height: 1.11;
-      margin-bottom: 8px;
-    }
-    .hero-sub { font-size: 16px; color: var(--body-color); margin-bottom: 32px; }
-    .install-snippet {
-      display: inline-flex; align-items: center; gap: 12px;
+    .store-select {
       background: var(--surface-soft);
-      border-radius: 9999px; padding: 12px 20px; height: 48px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 15px; color: var(--ink); margin-bottom: 28px;
+      border: none;
+      border-radius: 9999px;
+      padding: 6px 14px;
+      height: 32px;
+      font-size: 13px;
+      color: var(--ink);
+      cursor: pointer;
+      outline: none;
+      max-width: 200px;
+      font-family: inherit;
     }
-    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .store-select:focus { box-shadow: 0 0 0 2px var(--focus-ring); }
 
-    /* ── Section ── */
-    .section        { margin-bottom: 88px; }
-    .section-title  {
+    .btn-icon {
+      width: 32px; height: 32px;
+      background: none; border: none; cursor: pointer;
+      border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--charcoal); font-size: 18px;
+      transition: background 0.1s;
+    }
+    .btn-icon:hover { background: var(--surface-soft); }
+
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #d4d4d4; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .status-dot.ready   { background: #27c93f; }
+    .status-dot.loading { background: #ffbd2e; animation: pulse 1s infinite; }
+    .status-dot.error   { background: #ff5f56; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Chat area ── */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-area::-webkit-scrollbar { width: 4px; }
+    .chat-area::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 9999px; }
+
+    /* Welcome / empty */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px 0;
+      text-align: center;
+    }
+    .welcome-q {
       font-family: 'Nunito', system-ui, sans-serif;
-      font-size: 24px; font-weight: 600; margin-bottom: 8px;
+      font-size: 56px; font-weight: 600; line-height: 1;
+      color: var(--ink);
     }
-    .section-sub    { font-size: 16px; color: var(--body-color); margin-bottom: 24px; }
+    .welcome-title {
+      font-family: 'Nunito', system-ui, sans-serif;
+      font-size: 22px; font-weight: 500;
+      color: var(--ink);
+    }
+    .welcome-sub { font-size: 14px; color: var(--body-color); }
 
-    /* ── Store bar ── */
-    .store-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-    .pill-select {
-      background: var(--surface-soft); border: none; border-radius: 9999px;
-      padding: 8px 16px; height: 36px; font-size: 14px; color: var(--ink);
-      cursor: pointer; outline: none; min-width: 220px;
-      font-family: ui-sans-serif, system-ui, sans-serif;
-    }
-    .pill-select:focus { box-shadow: 0 0 0 2px var(--focus-ring); }
+    /* Messages */
+    .messages { display: flex; flex-direction: column; gap: 0; padding: 20px 0; }
 
-    /* ── Status pill ── */
-    .status-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: var(--surface-soft); border-radius: 9999px;
-      padding: 6px 12px; font-size: 12px; color: var(--charcoal);
-      font-family: ui-monospace, monospace;
-    }
-    .status-dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--terminal-green); }
-    .status-dot.loading { background: var(--terminal-yellow); animation: pulse 1s infinite; }
-    .status-dot.error   { background: var(--terminal-red); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .msg { display: flex; flex-direction: column; padding: 6px 0; }
 
-    /* ── Terminal card ── */
-    .terminal-card { background: var(--canvas); border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
-    .terminal-header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 12px 16px; border-bottom: 1px solid var(--hairline);
+    /* User message */
+    .msg-user {
+      align-items: flex-end;
+      margin-bottom: 4px;
     }
-    .tl { width: 12px; height: 12px; border-radius: 9999px; flex-shrink: 0; }
-    .tl-red    { background: var(--terminal-red); }
-    .tl-yellow { background: var(--terminal-yellow); }
-    .tl-green  { background: var(--terminal-green); }
-    .terminal-title {
-      font-size: 12px; color: var(--mute); margin-left: auto;
-      font-family: ui-monospace, monospace;
-    }
-
-    /* ── Chat body ── */
-    .terminal-body {
-      padding: 20px 16px; min-height: 420px; max-height: 520px;
-      overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
-    }
-    .terminal-body::-webkit-scrollbar { width: 4px; }
-    .terminal-body::-webkit-scrollbar-track { background: transparent; }
-    .terminal-body::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 9999px; }
-
-    /* ── Chat messages ── */
-    .msg { display: flex; flex-direction: column; gap: 4px; }
-    .msg-user { align-items: flex-end; }
-    .msg-ai   { align-items: flex-start; }
-    .msg-label { font-size: 11px; color: var(--mute); font-family: ui-monospace, monospace; padding: 0 4px; }
-    .msg-bubble { max-width: 88%; padding: 10px 16px; font-size: 14px; line-height: 1.55; }
-    .msg-user .msg-bubble {
-      background: var(--primary); color: var(--on-primary);
-      border-radius: 12px 12px 2px 12px;
-    }
-    .msg-ai .msg-bubble {
-      background: var(--surface-soft); color: var(--ink);
-      border-radius: 12px 12px 12px 2px;
-    }
-    .msg-citations {
-      max-width: 88%; padding: 8px 14px; margin-top: 2px;
-      border: 1px solid var(--hairline); border-radius: 8px;
-      font-size: 11px; color: var(--body-color);
-      font-family: ui-monospace, monospace; line-height: 1.6;
-    }
-    .citation-item { display: flex; gap: 6px; align-items: flex-start; }
-    .citation-arrow { color: var(--mute); flex-shrink: 0; }
-    .citation-label { color: var(--charcoal); }
-
-    /* ── Typing indicator ── */
-    .typing-indicator {
-      display: flex; gap: 4px; align-items: center;
+    .msg-user .bubble {
+      background: var(--surface-soft);
+      border-radius: 18px 18px 4px 18px;
       padding: 10px 16px;
-      background: var(--surface-soft); border-radius: 12px 12px 12px 2px;
-      width: fit-content;
+      font-size: 15px;
+      line-height: 1.55;
+      max-width: 78%;
+      color: var(--ink);
+    }
+
+    /* AI message */
+    .msg-ai { align-items: flex-start; }
+    .msg-ai-inner { display: flex; gap: 12px; align-items: flex-start; max-width: 88%; }
+    .ai-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--ink); color: var(--on-dark);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Nunito', system-ui, sans-serif;
+      font-size: 13px; font-weight: 600;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .ai-text {
+      font-size: 15px; line-height: 1.65;
+      color: var(--ink); padding-top: 4px;
+    }
+    .ai-text strong { font-weight: 600; }
+    .ai-text code {
+      background: var(--surface-soft);
+      padding: 1px 7px; border-radius: 5px;
+      font-family: ui-monospace, monospace; font-size: 13px;
+    }
+
+    /* Citations */
+    .citations {
+      margin-top: 8px;
+      margin-left: 40px;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .citation-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--body-color);
+      font-family: ui-monospace, monospace;
+    }
+    .citation-chip::before { content: '↗'; color: var(--mute); }
+
+    /* System msg */
+    .sys-msg {
+      text-align: center; padding: 8px 0;
+      font-size: 12px; color: var(--mute);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Typing indicator */
+    .typing-wrap { display: flex; gap: 12px; align-items: flex-start; padding: 6px 0; }
+    .typing-dots {
+      display: flex; gap: 4px; align-items: center;
+      padding: 10px 14px; background: var(--surface-soft);
+      border-radius: 18px 18px 18px 4px;
     }
     .typing-dot {
       width: 6px; height: 6px; border-radius: 50%;
-      background: var(--mute); animation: typing 1.2s ease-in-out infinite;
+      background: var(--mute); animation: tdot 1.2s ease-in-out infinite;
     }
-    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typing { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1);opacity:1} }
+    .typing-dot:nth-child(2) { animation-delay: .2s; }
+    .typing-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes tdot { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1);opacity:1} }
 
-    /* ── Terminal input ── */
-    .terminal-input {
-      padding: 12px 16px; border-top: 1px solid var(--hairline);
-      display: flex; gap: 8px; align-items: center;
+    /* ── Input bar (ChatGPT style) ── */
+    .input-wrap {
+      flex-shrink: 0;
+      padding: 12px 20px 20px;
+      background: var(--canvas);
     }
-    .search-pill {
-      flex: 1; background: var(--surface-soft); border: none;
-      border-radius: 9999px; padding: 8px 16px; height: 36px;
-      font-size: 14px; color: var(--ink); outline: none;
-      font-family: ui-sans-serif, system-ui, sans-serif;
+
+    .input-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--input-bg);
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: 1px solid var(--hairline);
+      transition: border-color 0.15s;
     }
-    .search-pill:focus { background: var(--canvas); box-shadow: 0 0 0 2px var(--focus-ring); }
-    .search-pill::placeholder { color: var(--mute); }
-    .search-pill:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ── Upload area ── */
-    .upload-area {
-      border: 1.5px dashed var(--hairline-strong); border-radius: 12px;
-      padding: 36px 24px; text-align: center; cursor: pointer;
-      transition: border-color 0.15s, background 0.15s; margin-bottom: 14px;
+    .input-box:focus-within {
+      border-color: var(--hairline-strong);
+      background: var(--canvas);
     }
-    .upload-area:hover, .upload-area.dragover {
-      border-color: var(--charcoal); background: var(--surface-soft);
+
+    .attach-btn {
+      width: 32px; height: 32px;
+      background: none; border: none; cursor: pointer;
+      border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--charcoal); font-size: 16px;
+      flex-shrink: 0;
+      transition: background 0.1s;
     }
-    .upload-icon  { font-size: 28px; margin-bottom: 8px; }
-    .upload-label { font-size: 14px; color: var(--charcoal); font-weight: 500; }
-    .upload-sub   { font-size: 12px; color: var(--mute); margin-top: 4px; }
-    #fileInput    { display: none; }
+    .attach-btn:hover { background: var(--hairline); }
 
-    /* ── Empty state ── */
-    .empty-state { text-align: center; padding: 56px 24px; color: var(--body-color); }
-    .empty-icon  { font-size: 32px; margin-bottom: 10px; }
-    .empty-title { font-size: 15px; font-weight: 500; color: var(--charcoal); margin-bottom: 4px; }
-    .empty-sub   { font-size: 13px; }
-
-    /* ── Pricing grid ── */
-    .pricing-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 16px; margin-bottom: 88px;
+    #queryInput {
+      flex: 1;
+      background: none; border: none; outline: none;
+      font-family: inherit; font-size: 15px;
+      color: var(--ink); line-height: 1.5;
+      resize: none; max-height: 200px;
+      padding: 2px 0;
+      scrollbar-width: none;
     }
-    .pricing-card      { background: var(--canvas); border: 1px solid var(--hairline); border-radius: 12px; padding: 32px; }
-    .pricing-card-dark { background: var(--surface-dark); border-radius: 12px; padding: 32px; }
-    .price-q     { font-family: 'Nunito', system-ui, sans-serif; font-size: 28px; font-weight: 600; margin-bottom: 12px; }
-    .price-tier  { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
-    .price-sub   { font-size: 14px; color: var(--body-color); margin-bottom: 20px; }
-    .pricing-card-dark .price-sub  { color: var(--on-dark-mute); }
-    .pricing-card-dark .price-tier { color: var(--on-dark); }
-    .price-amount{ font-family: 'Nunito', system-ui, sans-serif; font-size: 28px; font-weight: 500; margin-bottom: 24px; }
-    .pricing-card-dark .price-amount { color: var(--on-dark); }
-    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
-    .feature-list li { font-size: 14px; color: var(--charcoal); display: flex; gap: 8px; align-items: flex-start; }
-    .feature-list li::before { content: '—'; color: var(--mute); flex-shrink: 0; }
-    .pricing-card-dark .feature-list li { color: var(--on-dark-mute); }
+    #queryInput::-webkit-scrollbar { display: none; }
+    #queryInput::placeholder { color: var(--mute); }
 
-    /* ── Dark CTA strip ── */
-    .cta-strip {
-      background: var(--surface-dark); border-radius: 12px;
-      padding: 28px 32px; display: flex; align-items: center;
-      justify-content: space-between; gap: 24px; margin-bottom: 88px;
+    .send-btn {
+      width: 32px; height: 32px;
+      background: var(--primary); color: var(--on-primary);
+      border: none; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      font-size: 15px; font-weight: 600;
+      transition: opacity 0.1s, background 0.1s;
     }
-    .cta-strip-title { font-family: 'Nunito', system-ui, sans-serif; font-size: 22px; font-weight: 600; color: var(--on-dark); }
-    .cta-strip-sub   { font-size: 14px; color: var(--on-dark-mute); margin-top: 4px; }
+    .send-btn:disabled { background: var(--hairline-strong); cursor: not-allowed; }
+    .send-btn:not(:disabled):hover { background: #222; }
 
-    /* ── FAQ ── */
-    .faq-row { border-top: 1px solid var(--hairline); padding: 18px 0; }
-    .faq-q { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
-    .faq-a { font-size: 15px; color: var(--body-color); line-height: 1.6; }
-    .faq-row:last-child { border-bottom: 1px solid var(--hairline); }
+    .send-arrow {
+      width: 14px; height: 14px;
+      border-top: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+      transform: rotate(-45deg) translate(-1px, 1px);
+      display: inline-block;
+    }
 
-    /* ── Footer ── */
-    footer { border-top: 1px solid var(--hairline); padding: 32px 24px; text-align: center; }
-    .footer-links { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
-    .footer-links a { font-size: 12px; color: var(--body-color); text-decoration: none; }
-    .footer-links a:hover { color: var(--ink); }
-    .footer-copy { font-size: 12px; color: var(--mute); }
+    .input-hint {
+      text-align: center; font-size: 11px;
+      color: var(--mute); margin-top: 8px;
+    }
 
     /* ── Modal ── */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3);
       display: flex; align-items: center; justify-content: center;
-      z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.15s;
+      z-index: 200; opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal { background: var(--canvas); border-radius: 12px; padding: 32px; width: 400px; max-width: 92vw; }
-    .modal-title { font-family: 'Nunito', system-ui, sans-serif; font-size: 20px; font-weight: 600; margin-bottom: 16px; }
-    .text-input {
-      width: 100%; background: var(--canvas); border: 1px solid var(--hairline);
-      border-radius: 9999px; padding: 8px 16px; height: 40px;
-      font-size: 16px; font-family: ui-sans-serif, system-ui, sans-serif;
-      color: var(--ink); outline: none; margin-bottom: 16px;
+    .modal {
+      background: var(--canvas); border-radius: 16px;
+      padding: 28px; width: 380px; max-width: 92vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
     }
-    .text-input:focus { border-color: var(--ink); box-shadow: 0 0 0 2px var(--focus-ring); }
+    .modal-title {
+      font-family: 'Nunito', system-ui, sans-serif;
+      font-size: 18px; font-weight: 600; margin-bottom: 14px;
+    }
+    .modal-input {
+      width: 100%; background: var(--surface-soft);
+      border: 1px solid var(--hairline); border-radius: 9999px;
+      padding: 8px 16px; height: 40px;
+      font-size: 15px; font-family: inherit;
+      color: var(--ink); outline: none; margin-bottom: 14px;
+    }
+    .modal-input:focus { border-color: var(--ink); }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn {
+      display: inline-flex; align-items: center; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      border-radius: 9999px; padding: 7px 18px; height: 34px;
+    }
+    .btn-primary { background: var(--primary); color: var(--on-primary); }
+    .btn-secondary { background: var(--surface-soft); color: var(--ink); }
+
+    /* ── Upload progress ── */
+    .upload-status {
+      display: none; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--body-color);
+      font-family: ui-monospace, monospace;
+      padding: 4px 0 0 4px;
+    }
 
     /* ── Toast ── */
     .toast {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
       background: var(--surface-dark); color: var(--on-dark);
-      padding: 10px 20px; border-radius: 9999px; font-size: 14px;
-      z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none;
-      white-space: nowrap;
+      padding: 9px 18px; border-radius: 9999px;
+      font-size: 13px; z-index: 1000;
+      opacity: 0; transition: opacity 0.2s; pointer-events: none;
     }
     .toast.show { opacity: 1; }
 
-    /* ── Code chip ── */
-    code {
-      background: var(--surface-soft); padding: 2px 8px;
-      border-radius: 6px; font-family: ui-monospace, monospace;
-      font-size: 13px;
-    }
+    #fileInput { display: none; }
 
-    /* ── Responsive ── */
-    @media (max-width: 850px) {
-      .pricing-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 768px) {
-      .hero { padding: 56px 24px; }
-      .hero-q { font-size: 72px; }
-      .hero-title { font-size: 28px; }
-      .cta-strip { flex-direction: column; text-align: center; }
-      .section { margin-bottom: 56px; }
-    }
     @media (max-width: 640px) {
-      .nav-links { display: none; }
-      .install-snippet { font-size: 13px; padding: 10px 16px; }
+      .shell { max-width: 100%; }
+      .store-select { max-width: 130px; font-size: 12px; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Nav ──────────────────────────────────────────────────────────────── -->
-<nav>
-  <a href="#" class="nav-logo">Quinn</a>
-  <div class="nav-links">
-    <a href="#agent">Agent</a>
-    <a href="#upload">Upload</a>
-    <a href="#pricing">Pricing</a>
-    <a href="https://ai.google.dev/gemini-api/docs/file-search" target="_blank">Docs</a>
-    <a href="https://submit.tqltpo.com" target="_blank">TotalPricer</a>
-  </div>
-  <button class="btn btn-primary" onclick="scrollTo('agent')">Get Started</button>
-</nav>
+<div class="shell">
 
-<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
-<div class="hero">
-  <span class="hero-q">Q</span>
-  <h1 class="hero-title">The easiest way to search your documents.</h1>
-  <p class="hero-sub">The Future of Lending is Now</p>
-  <div class="install-snippet">gemini-embedding-2 &nbsp;·&nbsp; file-search &nbsp;·&nbsp; RAG</div>
-  <div class="hero-ctas">
-    <button class="btn btn-primary" onclick="scrollTo('agent')">Start Searching</button>
-    <button class="btn btn-secondary" onclick="scrollTo('upload')">Upload Documents</button>
-  </div>
-</div>
+  <!-- ── Header ── -->
+  <header>
+    <span class="logo">Quinn</span>
 
-<!-- ── Agent / Chat ──────────────────────────────────────────────────────── -->
-<div class="container">
-  <div class="section" id="agent">
-    <h2 class="section-title">Ask Your Documents</h2>
-    <p class="section-sub">Upload guidelines, matrices, or any documents — then ask anything in plain English.</p>
+    <div class="status-dot" id="statusDot" title="No store selected"></div>
 
-    <!-- Store selector -->
-    <div class="store-bar">
-      <select class="pill-select" id="storeSelect" onchange="onStoreChange()">
-        <option value="">Select a store...</option>
-      </select>
-      <button class="btn btn-secondary btn-sm" onclick="openModal()">+ New Store</button>
-      <span id="statusPill" class="status-pill" style="display:none">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Ready</span>
-      </span>
+    <select class="store-select" id="storeSelect" onchange="onStoreChange()">
+      <option value="">Select store…</option>
+    </select>
+
+    <button class="btn-icon" title="New store" onclick="openModal()">＋</button>
+
+    <button class="btn-icon" title="Upload document" onclick="document.getElementById('fileInput').click()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </button>
+
+    <input type="file" id="fileInput" accept=".txt,.pdf,.md,.docx,.csv,.json,.py,.ts,.js" multiple onchange="onFileSelect(event)" />
+  </header>
+
+  <!-- ── Chat area ── -->
+  <div class="chat-area" id="chatArea">
+    <!-- Welcome shown when empty -->
+    <div class="welcome" id="welcome">
+      <span class="welcome-q">Q</span>
+      <div class="welcome-title">How can I help you today?</div>
+      <div class="welcome-sub">Select a store above, upload documents, then ask anything.</div>
     </div>
-
-    <!-- Terminal chat -->
-    <div class="terminal-card">
-      <div class="terminal-header">
-        <div class="tl tl-red"></div>
-        <div class="tl tl-yellow"></div>
-        <div class="tl tl-green"></div>
-        <span class="terminal-title">quinn &nbsp;·&nbsp; gemini-2.5-flash &nbsp;·&nbsp; file-search</span>
-      </div>
-      <div class="terminal-body" id="chatBody">
-        <div class="empty-state">
-          <div class="empty-icon">◎</div>
-          <div class="empty-title">Select a store to begin</div>
-          <div class="empty-sub">Create or select a File Search Store, upload documents, then ask questions.</div>
-        </div>
-      </div>
-      <div class="terminal-input">
-        <input
-          type="text" id="queryInput" class="search-pill"
-          placeholder="Ask anything about your documents…"
-          onkeydown="if(event.key==='Enter')sendQuery()"
-          disabled
-        />
-        <button class="btn btn-primary btn-sm" id="sendBtn" onclick="sendQuery()" disabled>Ask</button>
-      </div>
-    </div>
+    <!-- Messages injected here -->
+    <div class="messages" id="messages" style="display:none"></div>
   </div>
 
-  <!-- ── Upload ──────────────────────────────────────────────────────────── -->
-  <div class="section" id="upload">
-    <h2 class="section-title">Upload Documents</h2>
-    <p class="section-sub">Add files to your selected File Search Store. Supports PDF, DOCX, TXT, Markdown, and more.</p>
-
-    <div
-      class="upload-area" id="uploadArea"
-      onclick="document.getElementById('fileInput').click()"
-      ondragover="onDragOver(event)"
-      ondragleave="onDragLeave()"
-      ondrop="onDrop(event)"
-    >
-      <input type="file" id="fileInput" accept=".txt,.pdf,.md,.docx,.csv,.json,.py,.ts,.js" multiple onchange="onFileSelect(event)" />
-      <div class="upload-icon">⬆</div>
-      <div class="upload-label">Drop files here or click to browse</div>
-      <div class="upload-sub">PDF &nbsp;·&nbsp; DOCX &nbsp;·&nbsp; TXT &nbsp;·&nbsp; Markdown &nbsp;·&nbsp; CSV &nbsp;·&nbsp; JSON &nbsp;·&nbsp; up to 100 MB each</div>
-    </div>
-
-    <span id="uploadStatus" class="status-pill" style="display:none">
-      <span class="status-dot loading" id="uploadDot"></span>
+  <!-- ── Input bar ── -->
+  <div class="input-wrap">
+    <div class="upload-status" id="uploadStatus">
+      <div class="status-dot loading"></div>
       <span id="uploadText">Uploading…</span>
-    </span>
+    </div>
+    <div class="input-box">
+      <button class="attach-btn" title="Attach file" onclick="document.getElementById('fileInput').click()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <textarea
+        id="queryInput"
+        rows="1"
+        placeholder="Ask anything about your documents…"
+        onkeydown="onKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendQuery()" disabled title="Send">
+        <span class="send-arrow"></span>
+      </button>
+    </div>
+    <div class="input-hint">Quinn · Gemini File Search RAG</div>
   </div>
 </div>
 
-<!-- ── Pricing ───────────────────────────────────────────────────────────── -->
-<div class="container-wide">
-  <div class="section" id="pricing" style="text-align:center">
-    <h2 style="font-family:'Nunito',system-ui,sans-serif;font-size:30px;font-weight:500;margin-bottom:8px">Pricing</h2>
-    <p style="font-size:16px;color:var(--body-color);margin-bottom:48px">Storage is free. Only pay for indexing and tokens.</p>
-
-    <div class="pricing-grid">
-      <!-- Free -->
-      <div class="pricing-card">
-        <div class="price-q">Q</div>
-        <div class="price-tier">Free</div>
-        <div class="price-sub">For developers getting started</div>
-        <div class="price-amount">$0 / mo</div>
-        <ul class="feature-list">
-          <li>1 GB File Search store</li>
-          <li>gemini-embedding-2 indexing</li>
-          <li>Gemini 2.5 Flash queries</li>
-          <li>PDF · DOCX · TXT · Markdown</li>
-          <li>48-hr raw file retention</li>
-        </ul>
-        <button class="btn btn-secondary" style="width:100%" onclick="scrollTo('agent')">Get Started</button>
-      </div>
-
-      <!-- Pro -->
-      <div class="pricing-card">
-        <div class="price-q">Q</div>
-        <div class="price-tier">Pro</div>
-        <div class="price-sub">For teams building production pipelines</div>
-        <div class="price-amount">Pay-as-you-go</div>
-        <ul class="feature-list">
-          <li>10 GB File Search store</li>
-          <li>Multimodal image + text search</li>
-          <li>Custom metadata filtering</li>
-          <li>Structured JSON output</li>
-          <li>Citation &amp; page-number refs</li>
-        </ul>
-        <button class="btn btn-primary" style="width:100%" onclick="window.open('https://submit.tqltpo.com','_blank')">Access Pipeline</button>
-      </div>
-
-      <!-- Max (dark) -->
-      <div class="pricing-card-dark">
-        <div class="price-q" style="color:var(--on-dark)">Q</div>
-        <div class="price-tier">Max</div>
-        <div class="price-sub">For enterprise lending workflows</div>
-        <div class="price-amount">Custom</div>
-        <ul class="feature-list">
-          <li>1 TB+ File Search store</li>
-          <li>Gemini 3.1 Pro Preview</li>
-          <li>Cross-collateral DSCR RAG</li>
-          <li>Non-QM matrix search</li>
-          <li>SLA + dedicated support</li>
-        </ul>
-        <button class="btn btn-on-dark" style="width:100%" onclick="window.open('https://submit.tqltpo.com','_blank')">Get Approved</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Dark CTA strip ────────────────────────────────────────────────────── -->
-<div class="container">
-  <div class="cta-strip">
-    <div>
-      <div class="cta-strip-title">🔒 Your data stays yours.</div>
-      <div class="cta-strip-sub">Files deleted after 48 hours. Embeddings stored until you delete them. No model training on your data.</div>
-    </div>
-    <button class="btn btn-on-dark" onclick="window.open('https://ai.google.dev/gemini-api/docs/file-search','_blank')">Read the Docs</button>
-  </div>
-</div>
-
-<!-- ── FAQ ───────────────────────────────────────────────────────────────── -->
-<div class="container">
-  <div class="section">
-    <h2 style="font-family:'Nunito',system-ui,sans-serif;font-size:30px;font-weight:500;margin-bottom:32px">Frequently asked questions</h2>
-
-    <div class="faq-row">
-      <div class="faq-q">How is File Search different from a regular vector database?</div>
-      <div class="faq-a">File Search is a fully managed RAG service — upload a file and query it immediately. No embedding pipelines, no index management, no infrastructure. Google handles chunking, embedding (gemini-embedding-2), indexing, and retrieval automatically.</div>
-    </div>
-    <div class="faq-row">
-      <div class="faq-q">What file formats are supported?</div>
-      <div class="faq-a">PDF, DOCX, TXT, Markdown, CSV, JSON, and most code file types up to 100 MB each. Images (PNG, JPEG) are supported with the multimodal gemini-embedding-2 model. Audio and video are not currently supported.</div>
-    </div>
-    <div class="faq-row">
-      <div class="faq-q">How long are my files and embeddings stored?</div>
-      <div class="faq-a">Raw files are deleted after 48 hours. Embeddings in your File Search Store are stored indefinitely until you manually delete them — there is no TTL on the index.</div>
-    </div>
-    <div class="faq-row">
-      <div class="faq-q">What does it cost?</div>
-      <div class="faq-a">Storage and query-time embeddings are free. You pay for indexing (when you first upload) at the gemini-embedding-2 rate, plus normal Gemini input/output token costs per query.</div>
-    </div>
-    <div class="faq-row">
-      <div class="faq-q">Can I filter results by document metadata?</div>
-      <div class="faq-a">Yes — attach key-value metadata to any document at upload time and filter at query time. Example: <code>program = "DSCR"</code> or <code>year &gt;= 2025</code>. Full AIP-160 filter syntax supported.</div>
-    </div>
-    <div class="faq-row">
-      <div class="faq-q">Where can I submit a loan?</div>
-      <div class="faq-a">Submit at <a href="https://submit.tqltpo.com" target="_blank" style="color:var(--ink)">submit.tqltpo.com</a> — TQL's full-service TPO portal for Non-QM and DSCR submissions.</div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Footer ────────────────────────────────────────────────────────────── -->
-<footer>
-  <div class="footer-links">
-    <a href="https://ai.google.dev/gemini-api/docs/file-search" target="_blank">Docs</a>
-    <a href="https://github.com/mortava/tqlembed20" target="_blank">GitHub</a>
-    <a href="https://submit.tqltpo.com" target="_blank">TotalPricer</a>
-    <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank">Pricing</a>
-    <a href="mailto:jbeach@tqlend.com">Contact</a>
-  </div>
-  <div class="footer-copy">© 2026 Total Quality Lending &nbsp;·&nbsp; Quinn v1 &nbsp;·&nbsp; Powered by Gemini</div>
-</footer>
-
-<!-- ── New Store Modal ───────────────────────────────────────────────────── -->
+<!-- ── New store modal ── -->
 <div class="modal-overlay" id="newStoreModal">
   <div class="modal">
-    <div class="modal-title">Create File Search Store</div>
-    <input type="text" class="text-input" id="newStoreName" placeholder="Store display name…" />
+    <div class="modal-title">New File Search Store</div>
+    <input type="text" class="modal-input" id="newStoreName" placeholder="Store name…" />
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="createStore()">Create Store</button>
+      <button class="btn btn-primary" onclick="createStore()">Create</button>
     </div>
   </div>
 </div>
@@ -562,78 +426,93 @@
 /* ── State ── */
 let currentStore = null;
 let isQuerying   = false;
+let hasMessages  = false;
 
-/* ── Utils ── */
-function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* ── Auto-resize textarea ── */
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
 }
-function fmt(text) {
-  return esc(text)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+
+/* ── Enter = send, Shift+Enter = newline ── */
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendQuery();
+  }
 }
 
 /* ── Toast ── */
-let toastTimer;
+let toastT;
 function toast(msg) {
-  clearTimeout(toastTimer);
+  clearTimeout(toastT);
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  toastT = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-/* ── Status pill ── */
-function setStatus(state, text) {
-  const pill = document.getElementById('statusPill');
-  const dot  = document.getElementById('statusDot');
-  const label= document.getElementById('statusText');
-  if (!currentStore) { pill.style.display = 'none'; return; }
-  pill.style.display = 'inline-flex';
-  dot.className = 'status-dot' + (state === 'loading' ? ' loading' : state === 'error' ? ' error' : '');
-  label.textContent = text;
+/* ── Escape html ── */
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(t) {
+  return esc(t)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+/* ── Show messages container ── */
+function showMessages() {
+  if (!hasMessages) {
+    document.getElementById('welcome').style.display = 'none';
+    document.getElementById('messages').style.display = 'flex';
+    hasMessages = true;
+  }
+}
+
+function scrollBottom() {
+  const ca = document.getElementById('chatArea');
+  ca.scrollTop = ca.scrollHeight;
 }
 
 /* ── Stores ── */
 async function loadStores() {
   try {
-    const res = await fetch('/api/stores');
-    const data = await res.json();
-    const sel  = document.getElementById('storeSelect');
+    const r = await fetch('/api/stores');
+    const d = await r.json();
+    const sel = document.getElementById('storeSelect');
     const prev = sel.value;
-    sel.innerHTML = '<option value="">Select a store…</option>';
-    (data.stores || []).forEach(s => {
+    sel.innerHTML = '<option value="">Select store…</option>';
+    (d.stores||[]).forEach(s => {
       const o = document.createElement('option');
       o.value = s.name;
       o.textContent = s.display_name || s.name;
       sel.appendChild(o);
     });
     if (prev) sel.value = prev;
-  } catch { toast('Failed to load stores'); }
+  } catch { toast('Could not load stores'); }
 }
 
 function onStoreChange() {
   const val = document.getElementById('storeSelect').value;
   currentStore = val || null;
-  const input = document.getElementById('queryInput');
-  const btn   = document.getElementById('sendBtn');
-  input.disabled = !currentStore;
-  btn.disabled   = !currentStore;
-  clearChat();
-  if (currentStore) {
-    setStatus('ready', 'Ready');
-    sysMsg('Store connected. Upload documents below, then ask questions here.');
-  } else {
-    setStatus('', '');
-  }
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = !currentStore;
+  setDot(currentStore ? 'ready' : '');
+  if (currentStore) sysMsg('Store connected. Ask a question or upload a document.');
 }
 
-/* ── New store modal ── */
+function setDot(state) {
+  const d = document.getElementById('statusDot');
+  d.className = 'status-dot' + (state ? ' ' + state : '');
+  d.title = state === 'ready' ? 'Store ready' : state === 'loading' ? 'Processing…' : 'No store selected';
+}
+
 function openModal() {
   document.getElementById('newStoreModal').classList.add('open');
-  setTimeout(() => document.getElementById('newStoreName').focus(), 80);
+  setTimeout(() => document.getElementById('newStoreName').focus(), 60);
 }
 function closeModal() {
   document.getElementById('newStoreModal').classList.remove('open');
@@ -643,33 +522,29 @@ async function createStore() {
   const name = document.getElementById('newStoreName').value.trim();
   if (!name) return;
   try {
-    const res = await fetch('/api/stores', {
+    const r = await fetch('/api/stores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: name }),
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({display_name: name}),
     });
-    const data = await res.json();
+    const d = await r.json();
     closeModal();
     await loadStores();
-    document.getElementById('storeSelect').value = data.name;
+    document.getElementById('storeSelect').value = d.name;
     onStoreChange();
     toast('Store created');
   } catch { toast('Failed to create store'); }
 }
 
 /* ── Upload ── */
-function onDragOver(e) { e.preventDefault(); document.getElementById('uploadArea').classList.add('dragover'); }
-function onDragLeave()  { document.getElementById('uploadArea').classList.remove('dragover'); }
-function onDrop(e)      { e.preventDefault(); onDragLeave(); uploadFiles(Array.from(e.dataTransfer.files)); }
-function onFileSelect(e){ uploadFiles(Array.from(e.target.files)); }
+function onFileSelect(e) { uploadFiles(Array.from(e.target.files)); }
 
 async function uploadFiles(files) {
   if (!currentStore) { toast('Select a store first'); return; }
   const statusEl = document.getElementById('uploadStatus');
   const statusTx = document.getElementById('uploadText');
-  const dot      = document.getElementById('uploadDot');
-  statusEl.style.display = 'inline-flex';
-  dot.className = 'status-dot loading';
+  statusEl.style.display = 'flex';
+  setDot('loading');
 
   for (const file of files) {
     statusTx.textContent = `Uploading ${file.name}…`;
@@ -678,108 +553,123 @@ async function uploadFiles(files) {
     form.append('store_name', currentStore);
     form.append('display_name', file.name);
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: form });
-      if (!res.ok) throw new Error(await res.text());
+      const r = await fetch('/api/upload', {method:'POST', body: form});
+      if (!r.ok) throw new Error();
       toast(`${file.name} indexed ✓`);
       sysMsg(`"${file.name}" uploaded and indexed.`);
     } catch { toast(`Failed: ${file.name}`); }
   }
 
-  dot.className = 'status-dot';
-  statusTx.textContent = 'Upload complete';
-  setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+  statusEl.style.display = 'none';
+  setDot('ready');
   document.getElementById('fileInput').value = '';
 }
 
 /* ── Chat ── */
-function clearChat() { document.getElementById('chatBody').innerHTML = ''; }
-
 function sysMsg(text) {
-  const body = document.getElementById('chatBody');
-  const div  = document.createElement('div');
-  div.style.cssText = 'text-align:center;padding:6px 0';
-  div.innerHTML = `<span style="font-size:11px;color:var(--mute);font-family:ui-monospace,monospace">${esc(text)}</span>`;
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
+  showMessages();
+  document.getElementById('messages').insertAdjacentHTML('beforeend',
+    `<div class="sys-msg">${esc(text)}</div>`);
+  scrollBottom();
 }
 
-function userMsg(text) {
-  document.getElementById('chatBody').insertAdjacentHTML('beforeend', `
+function addUserMsg(text) {
+  showMessages();
+  document.getElementById('messages').insertAdjacentHTML('beforeend', `
     <div class="msg msg-user">
-      <span class="msg-label">you</span>
-      <div class="msg-bubble">${esc(text)}</div>
+      <div class="bubble">${esc(text)}</div>
     </div>`);
-  document.getElementById('chatBody').scrollTop = 9999;
+  scrollBottom();
 }
 
 function addTyping() {
-  const div = document.createElement('div');
-  div.className = 'msg msg-ai'; div.id = 'typing';
-  div.innerHTML = `<span class="msg-label">quinn</span>
-    <div class="typing-indicator">
-      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-    </div>`;
-  document.getElementById('chatBody').appendChild(div);
-  document.getElementById('chatBody').scrollTop = 9999;
+  showMessages();
+  document.getElementById('messages').insertAdjacentHTML('beforeend', `
+    <div class="msg msg-ai" id="typing">
+      <div class="typing-wrap">
+        <div class="ai-avatar">Q</div>
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>`);
+  scrollBottom();
 }
 function removeTyping() { document.getElementById('typing')?.remove(); }
 
-function aiMsg(text, citations) {
-  let html = `<div class="msg msg-ai"><span class="msg-label">quinn</span>
-    <div class="msg-bubble">${fmt(text)}</div>`;
+function addAIMsg(text, citations) {
+  let html = `<div class="msg msg-ai">
+    <div class="msg-ai-inner">
+      <div class="ai-avatar">Q</div>
+      <div class="ai-text">${fmt(text)}</div>
+    </div>`;
+
   if (citations?.length) {
-    html += `<div class="msg-citations">`;
-    citations.slice(0, 4).forEach((c, i) => {
-      const label = c.title || (c.text ? c.text.slice(0, 60) + '…' : `Source ${i+1}`);
-      const page  = c.page_number ? ` · p.${c.page_number}` : '';
-      html += `<div class="citation-item"><span class="citation-arrow">↗</span><span class="citation-label">${esc(label)}${page}</span></div>`;
+    html += `<div class="citations">`;
+    citations.slice(0,4).forEach((c,i) => {
+      const label = c.title || (c.text ? c.text.slice(0,55)+'…' : `Source ${i+1}`);
+      const pg = c.page_number ? ` · p.${c.page_number}` : '';
+      html += `<div class="citation-chip">${esc(label)}${pg}</div>`;
     });
     html += `</div>`;
   }
   html += `</div>`;
-  document.getElementById('chatBody').insertAdjacentHTML('beforeend', html);
-  document.getElementById('chatBody').scrollTop = 9999;
+  document.getElementById('messages').insertAdjacentHTML('beforeend', html);
+  scrollBottom();
 }
 
 async function sendQuery() {
-  if (isQuerying || !currentStore) return;
+  if (isQuerying) return;
+  if (!currentStore) { toast('Select a store first'); return; }
   const input = document.getElementById('queryInput');
   const q = input.value.trim();
   if (!q) return;
+
   input.value = '';
+  input.style.height = 'auto';
   isQuerying = true;
   document.getElementById('sendBtn').disabled = true;
-  setStatus('loading', 'Searching…');
-
-  userMsg(q);
+  setDot('loading');
+  addUserMsg(q);
   addTyping();
 
   try {
-    const res  = await fetch('/api/query', {
+    const r = await fetch('/api/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, store_names: [currentStore] }),
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({question: q, store_names: [currentStore]}),
     });
-    const data = await res.json();
+    const d = await r.json();
     removeTyping();
-    aiMsg(data.answer || data.detail || 'No response.', data.citations);
+    addAIMsg(d.answer || d.detail || 'No response.', d.citations);
   } catch {
     removeTyping();
-    aiMsg('An error occurred. Make sure your store has indexed documents.', []);
+    addAIMsg('Something went wrong. Make sure your store has indexed documents.', []);
   }
 
   isQuerying = false;
   document.getElementById('sendBtn').disabled = false;
-  setStatus('ready', 'Ready');
+  setDot('ready');
 }
 
-/* ── Keyboard shortcuts ── */
+/* ── Keyboard ── */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
-  if (e.key === 'Enter' && document.getElementById('newStoreModal').classList.contains('open')) createStore();
+  if (e.key === 'Enter' && document.getElementById('newStoreModal').classList.contains('open')) {
+    e.preventDefault(); createStore();
+  }
 });
 document.getElementById('newStoreModal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
+});
+
+/* ── Enable send when typing ── */
+document.getElementById('queryInput').addEventListener('input', () => {
+  const btn = document.getElementById('sendBtn');
+  const val = document.getElementById('queryInput').value.trim();
+  btn.disabled = !val || !currentStore;
 });
 
 /* ── Init ── */
