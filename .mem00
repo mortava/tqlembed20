@@ -1,0 +1,77 @@
+# Session Memory — tqlembed20
+**Date**: 2026-05-08
+**Branch**: main
+**Session Focus**: Built Gemini File Search RAG project with Quinn design system UI, deployed to Vercel
+
+## Status
+- **Completed**: Full project created — FastAPI backend, Quinn-styled HTML frontend, Gemini File Search RAG src modules, deployed to GitHub + Vercel
+- **In Progress**: Nothing — all committed and deployed
+- **Next Up**: Set GEMINI_API_KEY on Vercel env vars so deployed site works; test live RAG queries; optionally add more Non-QM docs to sample_data/
+- **Blockers**: Vercel deploy is live but GEMINI_API_KEY not yet set in Vercel env — deployed URL will return 500 until it is
+
+## Change Tree
+```
+added:   app.py                  ← FastAPI server: /api/stores, /api/upload, /api/query endpoints
+added:   static/index.html       ← Quinn design system UI (full RAG chat agent, pricing, FAQ, footer)
+added:   src/__init__.py         ← exports FileSearchStoreManager, FileUploader, FileSearchQuery
+added:   src/store.py            ← FileSearchStoreManager: create/list/get/delete stores & docs
+added:   src/uploader.py         ← FileUploader: direct upload, Files API import, custom chunking
+added:   src/query.py            ← FileSearchQuery: basic, citations, structured Pydantic output
+added:   main.py                 ← CLI demo script (all 5 RAG patterns, uses rich for output)
+added:   requirements.txt        ← google-genai, fastapi, uvicorn, python-multipart, pydantic, rich
+added:   sample_data/sample.txt  ← TQL Non-QM lending guidelines sample doc
+added:   .env                    ← GEMINI_API_KEY set (not committed, gitignored)
+added:   .gitignore              ← .vercel added by Vercel CLI
+```
+
+## Key Decisions
+- Used FastAPI + asyncio.to_thread to wrap synchronous Gemini SDK calls without blocking the event loop
+- Quinn design system applied exactly: Nunito font (SF Pro Rounded substitute), all-black pill CTAs, paper-white canvas, terminal card for chat, macOS traffic lights, dark Max pricing card
+- Frontend is pure vanilla HTML/CSS/JS (no build step) — served directly from FastAPI static files
+- Gemini model used for queries: `gemini-2.5-flash` (changeable in src/query.py DEFAULT_MODEL)
+- Embedding model: `models/gemini-embedding-2` (supports both text + images)
+- GEMINI_API_KEY: AIzaSyB6WxMvKYiAFDAVCntyu_une_rW0BllcKM (set in .env only, never committed)
+
+## Commands
+```bash
+# Dev server (from C:\Users\beach\tqlembed20)
+python -m uvicorn app:app --reload --port 8000
+
+# Install deps
+pip install -r requirements.txt
+
+# CLI demo (no server needed)
+python main.py
+
+# Deploy to Vercel
+npx vercel --prod --yes
+```
+
+## Technical Notes
+- Vercel auto-detected FastAPI; install command is `pip install -r requirements.txt`
+- Static files served via FastAPI StaticFiles at /static; index.html returned from GET /
+- Upload flow: multipart POST /api/upload → temp file → uploader.upload_direct → Gemini File Search Store
+- Operations (upload, import) are long-running; uploader._wait_for_operation polls every 5s
+- Store names in Gemini API format: "fileSearchStores/abc123" — always use full name, not display name
+- Citations returned in response.candidates[0].grounding_metadata.grounding_chunks
+
+## URLs
+- GitHub: https://github.com/mortava/tqlembed20
+- Vercel: https://tqlembed20-4ssgx9te4-james-projects-d94c6754.vercel.app
+- Local: http://localhost:8000
+- TotalPricer (linked in UI): https://submit.tqltpo.com
+
+## Recent Commits
+```
+e10edac chore: add .gitignore from Vercel link
+4070dea feat: Quinn UI + FastAPI server for Gemini File Search RAG
+fad32b4 feat: init Gemini File Search RAG project
+```
+
+## Uncommitted Changes
+```
+?? .env              ← gitignored, has GEMINI_API_KEY
+?? UIdesign.md       ← design spec, not committed
+?? server_*.log      ← uvicorn logs, gitignored
+?? __pycache__/      ← gitignored
+```
