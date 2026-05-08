@@ -672,8 +672,60 @@ document.getElementById('queryInput').addEventListener('input', () => {
   btn.disabled = !val || !currentStore;
 });
 
-/* ── Init ── */
-loadStores();
+/* ── Init: auto-select or auto-create default store ── */
+async function init() {
+  try {
+    const r = await fetch('/api/stores');
+    const d = await r.json();
+    const stores = d.stores || [];
+    const sel = document.getElementById('storeSelect');
+    sel.innerHTML = '<option value="">Select store…</option>';
+    stores.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.name;
+      o.textContent = s.display_name || s.name;
+      sel.appendChild(o);
+    });
+
+    if (stores.length > 0) {
+      // Auto-select first store
+      sel.value = stores[0].name;
+      onStoreChange();
+    } else {
+      // No stores — create a default one silently
+      const cr = await fetch('/api/stores', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({display_name: 'Quinn Default'}),
+      });
+      const nd = await cr.json();
+      const o = document.createElement('option');
+      o.value = nd.name; o.textContent = nd.display_name || nd.name;
+      sel.appendChild(o);
+      sel.value = nd.name;
+      onStoreChange();
+    }
+  } catch { toast('Could not connect to server'); }
+}
+
+async function loadStores() {
+  try {
+    const r = await fetch('/api/stores');
+    const d = await r.json();
+    const sel = document.getElementById('storeSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Select store…</option>';
+    (d.stores||[]).forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.name;
+      o.textContent = s.display_name || s.name;
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  } catch { toast('Could not load stores'); }
+}
+
+init();
 </script>
 </body>
 </html>
