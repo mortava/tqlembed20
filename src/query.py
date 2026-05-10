@@ -1,6 +1,17 @@
+import time
+from typing import Callable
+
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+
+FALLBACK_MODEL = "gemini-2.5-flash-lite"
+RETRY_DELAYS = (0.0, 1.0, 2.5)  # primary model: initial attempt + 2 retries
+
+
+def _is_overloaded(exc: Exception) -> bool:
+    msg = str(exc)
+    return any(token in msg for token in ("503", "UNAVAILABLE", "high demand", "overloaded"))
 
 SYSTEM_INSTRUCTION = """# IDENTITY
 
@@ -217,6 +228,35 @@ class FileSearchQuery:
             **extra,
         )
 
+    def _call_with_retry(self, fn: Callable[[str], object]):
+        """Run fn(model_name) against the primary model with retries, then
+        fall back to a lighter sibling on persistent 503/UNAVAILABLE.
+
+        Gemini returns 503 when the specific model is at capacity; the
+        fallback model usually has spare capacity even when flash is hot.
+        """
+        last_exc: Exception | None = None
+        for delay in RETRY_DELAYS:
+            if delay > 0:
+                time.sleep(delay)
+            try:
+                return fn(self.model)
+            except Exception as exc:
+                if not _is_overloaded(exc):
+                    raise
+                last_exc = exc
+
+        if FALLBACK_MODEL and FALLBACK_MODEL != self.model:
+            try:
+                return fn(FALLBACK_MODEL)
+            except Exception as exc:
+                if not _is_overloaded(exc):
+                    raise
+                last_exc = exc
+
+        assert last_exc is not None
+        raise last_exc
+
     def ask(
         self,
         question: str,
@@ -225,11 +265,16 @@ class FileSearchQuery:
     ) -> str:
         """Query the file search store with a question."""
         tool = self._build_tool(store_names, metadata_filter)
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=question,
-            config=self._build_config(tool),
-        )
+        config = self._build_config(tool)
+
+        def _call(model_name: str):
+            return self.client.models.generate_content(
+                model=model_name,
+                contents=question,
+                config=config,
+            )
+
+        response = self._call_with_retry(_call)
         return response.text
 
     def ask_with_citations(
@@ -240,11 +285,16 @@ class FileSearchQuery:
     ) -> dict:
         """Query and return both the answer and citation metadata."""
         tool = self._build_tool(store_names, metadata_filter)
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=question,
-            config=self._build_config(tool),
-        )
+        config = self._build_config(tool)
+
+        def _call(model_name: str):
+            return self.client.models.generate_content(
+                model=model_name,
+                contents=question,
+                config=config,
+            )
+
+        response = self._call_with_retry(_call)
 
         citations = []
         candidate = response.candidates[0]
@@ -276,13 +326,18 @@ class FileSearchQuery:
     ):
         """Query and return a structured Pydantic model response."""
         tool = self._build_tool(store_names, metadata_filter)
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=question,
-            config=self._build_config(
-                tool,
-                response_mime_type="application/json",
-                response_schema=schema.model_json_schema(),
-            ),
+        config = self._build_config(
+            tool,
+            response_mime_type="application/json",
+            response_schema=schema.model_json_schema(),
         )
+
+        def _call(model_name: str):
+            return self.client.models.generate_content(
+                model=model_name,
+                contents=question,
+                config=config,
+            )
+
+        response = self._call_with_retry(_call)
         return schema.model_validate_json(response.text)
