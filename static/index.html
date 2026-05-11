@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
   <style>
     :root {
       --primary: #000;
@@ -176,26 +177,40 @@
       font-family: ui-monospace, monospace; font-size: 13px;
     }
 
-    /* Citations */
-    .citations {
-      margin-top: 8px;
-      margin-left: 40px;
-      display: flex; flex-direction: column; gap: 3px;
+    /* Markdown rendering inside AI messages */
+    .ai-text p { margin: 0 0 10px; }
+    .ai-text p:last-child { margin-bottom: 0; }
+    .ai-text strong { color: var(--ink); font-weight: 600; }
+    .ai-text ul, .ai-text ol { margin: 6px 0 10px 22px; }
+    .ai-text li { margin: 2px 0; }
+    .ai-text code {
+      background: var(--surface-soft);
+      padding: 1px 5px; border-radius: 4px;
+      font-family: ui-monospace, monospace; font-size: 0.92em;
     }
-    .citation-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      font-size: 12px; color: var(--body-color);
-      font-family: ui-monospace, monospace;
+    .ai-text table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 12px;
+      font-size: 14px;
     }
-    .citation-link {
-      text-decoration: none;
-      color: var(--body-color);
-      transition: color 120ms ease, transform 120ms ease;
-      cursor: pointer;
+    .ai-text th, .ai-text td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--hairline);
+      vertical-align: top;
     }
-    .citation-link:hover { color: #000; }
-    .citation-link .ext-arrow { color: var(--mute); font-size: 11px; }
-    .citation-link:hover .ext-arrow { color: #000; }
+    .ai-text thead th {
+      background: var(--surface-soft);
+      font-weight: 600;
+      color: var(--ink);
+      border-bottom: 1px solid var(--hairline-strong);
+      font-size: 13px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .ai-text tbody tr:last-child td { border-bottom: none; }
+    .ai-text tbody tr:hover { background: rgba(0,0,0,0.015); }
 
     /* System msg */
     .sys-msg {
@@ -403,7 +418,7 @@
         <span class="send-arrow"></span>
       </button>
     </div>
-    <div class="input-hint">Quinn · Gemini File Search RAG</div>
+    <div class="input-hint">Powered by Total Quality Lending</div>
   </div>
 </div>
 
@@ -444,11 +459,16 @@ function toast(msg) {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+/* ── Markdown rendering via marked.js (tables, lists, bold, code) ── */
+if (window.marked) {
+  marked.setOptions({ gfm: true, breaks: true });
+}
 function fmt(t) {
-  return esc(t)
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\n/g,'<br>');
+  if (window.marked) {
+    return marked.parse(String(t || ''));
+  }
+  // Fallback if CDN failed
+  return esc(t).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
 }
 
 /* ── Show messages container ── */
@@ -536,33 +556,15 @@ function addTyping() {
 }
 function removeTyping() { document.getElementById('typing')?.remove(); }
 
-function addAIMsg(text, citations) {
-  let html = `<div class="msg msg-ai">
+function addAIMsg(text, _citations) {
+  // Citations intentionally not rendered — Quinn's prose carries the answer,
+  // PDFs remain reachable via /static/kb-pdfs/* if needed elsewhere.
+  const html = `<div class="msg msg-ai">
     <div class="msg-ai-inner">
       <div class="ai-avatar">Q</div>
       <div class="ai-text">${fmt(text)}</div>
-    </div>`;
-
-  if (citations?.length) {
-    html += `<div class="citations">`;
-    // Dedupe by label+page so we don't render the same PDF link 4 times.
-    const seen = new Set();
-    citations.slice(0,8).forEach((c,i) => {
-      const label = c.label || c.title || (c.text ? c.text.slice(0,55)+'…' : `Source ${i+1}`);
-      const pg = c.page_number ? ` · p.${c.page_number}` : '';
-      const key = `${label}|${pg}|${c.pdf_url||''}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      const text = `${esc(label)}${pg}`;
-      if (c.pdf_url) {
-        html += `<a class="citation-chip citation-link" href="${esc(c.pdf_url)}" target="_blank" rel="noopener">${text} <span class="ext-arrow">↗</span></a>`;
-      } else {
-        html += `<div class="citation-chip">${text}</div>`;
-      }
-    });
-    html += `</div>`;
-  }
-  html += `</div>`;
+    </div>
+  </div>`;
   document.getElementById('messages').insertAdjacentHTML('beforeend', html);
   scrollBottom();
 }
