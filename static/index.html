@@ -461,6 +461,13 @@ function esc(s) {
 }
 /* ── Markdown rendering via marked.js (tables, lists, bold, code) ── */
 if (window.marked) {
+  // Defensive: strip italics so stray *word* or _word_ never renders as <em>.
+  // Quinn is instructed to never emit italics, this just guarantees it.
+  marked.use({
+    renderer: {
+      em(token) { return token.text; }
+    }
+  });
   marked.setOptions({ gfm: true, breaks: true });
 }
 function fmt(t) {
