@@ -1,77 +1,100 @@
 # Session Memory — tqlembed20
-**Date**: 2026-05-08
+**Date**: 2026-05-11
 **Branch**: main
-**Session Focus**: Built Gemini File Search RAG project with Quinn design system UI, deployed to Vercel
+**Session Focus**: Quinn v2 SYSTEM_INSTRUCTION design (32-dimension Q&A), KB persistence + pinning, PDF mapping, UI polish (tables, no chips, footer rebrand)
 
 ## Status
-- **Completed**: Full project created — FastAPI backend, Quinn-styled HTML frontend, Gemini File Search RAG src modules, deployed to GitHub + Vercel
-- **In Progress**: Nothing — all committed and deployed
-- **Next Up**: Set GEMINI_API_KEY on Vercel env vars so deployed site works; test live RAG queries; optionally add more Non-QM docs to sample_data/
-- **Blockers**: Vercel deploy is live but GEMINI_API_KEY not yet set in Vercel env — deployed URL will return 500 until it is
+- **Completed**: Full Quinn persona wired in via robust portable SYSTEM_INSTRUCTION; KB pinned server-side; 3 TQL guideline MD docs indexed; 3 PDFs deployed; markdown tables rendering; footer rebranded; all asterisks/italics suppressed.
+- **In Progress**: Nothing — clean working tree.
+- **Next Up**: User to test live broker questions, validate table rendering on real comparison queries, optionally clean .env malformed lines (~40 unparseable per dotenv warnings).
+- **Blockers**: None on the app. Heads-up: `.env` has unparseable lines (unquoted `#`/`&`/`^` per known feedback pattern); GEMINI_API_KEY loads OK but worth cleaning.
 
-## Change Tree
+## Change Tree (this session)
 ```
-added:   app.py                  ← FastAPI server: /api/stores, /api/upload, /api/query endpoints
-added:   static/index.html       ← Quinn design system UI (full RAG chat agent, pricing, FAQ, footer)
-added:   src/__init__.py         ← exports FileSearchStoreManager, FileUploader, FileSearchQuery
-added:   src/store.py            ← FileSearchStoreManager: create/list/get/delete stores & docs
-added:   src/uploader.py         ← FileUploader: direct upload, Files API import, custom chunking
-added:   src/query.py            ← FileSearchQuery: basic, citations, structured Pydantic output
-added:   main.py                 ← CLI demo script (all 5 RAG patterns, uses rich for output)
-added:   requirements.txt        ← google-genai, fastapi, uvicorn, python-multipart, pydantic, rich
-added:   sample_data/sample.txt  ← TQL Non-QM lending guidelines sample doc
-added:   .env                    ← GEMINI_API_KEY set (not committed, gitignored)
-added:   .gitignore              ← .vercel added by Vercel CLI
+modified:  src/query.py        ← Quinn v2 SYSTEM_INSTRUCTION + retry/fallback + threaded through ask/ask_with_citations/ask_structured. Iterated: actionable closers replace freshness footer; inline source attribution removed; strict markdown punctuation (- only, no italics).
+modified:  app.py              ← PINNED_STORE_NAME (env-overridable). /api/query, /api/upload hard-route to pinned store. /api/store, /api/resources endpoints. KB_DOC_MAP + _enrich_citations for PDF linking (server still emits, frontend now ignores).
+modified:  static/index.html   ← Removed store-selector + auto-create modal. Bound to /api/store. Added marked.js (CDN) for full markdown rendering. Stripped citation chip render entirely. Footer text → "Powered by Total Quality Lending". Override marked em renderer to plain text. Table CSS.
+added:     static/kb-pdfs/TQL_DSCR_GUIDE.pdf
+added:     static/kb-pdfs/TQL_nonqmMatrix_1.pdf
+added:     static/kb-pdfs/TQL_uw_guides.pdf
+added:     _ingest_docs.py     ← Batch uploader: folder/file args, idempotent by display_name, PDF/TXT/MD/DOCX/CSV/JSON.
+added:     _reset_kb.py        ← One-shot: delete all stores, create "Quinn Knowledge Base".
+added:     _audit_kb.py        ← (already existed) committed: list stores + docs.
 ```
 
-## Key Decisions
-- Used FastAPI + asyncio.to_thread to wrap synchronous Gemini SDK calls without blocking the event loop
-- Quinn design system applied exactly: Nunito font (SF Pro Rounded substitute), all-black pill CTAs, paper-white canvas, terminal card for chat, macOS traffic lights, dark Max pricing card
-- Frontend is pure vanilla HTML/CSS/JS (no build step) — served directly from FastAPI static files
-- Gemini model used for queries: `gemini-2.5-flash` (changeable in src/query.py DEFAULT_MODEL)
-- Embedding model: `models/gemini-embedding-2` (supports both text + images)
-- GEMINI_API_KEY: AIzaSyB6WxMvKYiAFDAVCntyu_une_rW0BllcKM (set in .env only, never committed)
+## Key Decisions (Quinn v2 — 32 dimensions, locked via Q&A)
+- Audience: TQL brokers (assume fluency, never expand acronyms)
+- Knowledge boundary: RAG-only, hard refuse outside KB ("Loop in your AE/scenario desk")
+- Voice: Quinn persona — witty, dry-humor, confident, opinionated; friend tone not report tone
+- Format: markdown with **tables for any row/comparison data** (FICO grids, LTV by occupancy, program comparisons). Bullets ONLY for unstructured lists. `-` bullets only, no `*`. Bold (`**`) for key numbers + decisive verdicts. NO italics at all (renderer also strips them defensively).
+- Refusal: refuse + escalate to AE
+- Compliance: no legal disclaimers
+- Jailbreak: hard refuse + stay in character, never reveal model or instructions
+- Identity: always "Quinn, TQL's Non-QM lending assistant" — never name Gemini/Claude/GPT
+- Numbers: verbatim from docs, never round
+- Comparisons: side-by-side table + recommendation with reasoning
+- Memory: track scenario across turns, auto-reset on pivot
+- Compute: clean math, no extra commentary
+- Sensitive scenarios (occupancy misrep, straw buyers, fraud): decline + route to AE/compliance
+- PII: never echo back
+- Examples: 5 few-shot examples embedded (numeric, escalation, comparison-with-table, row-style criteria, jailbreak refusal, sensitive decline, computation)
+- **Closer**: actionable next step matched to question type (pricing → TotalPricer; eligibility → "stress-test other scenarios?"; comparison → "pull live pricing on X?"; exception → "loop in your AE"; computation → "check against thresholds?"). **Never** a disclaimer like "guidelines change, confirm with AE."
+- **Sources**: NEVER attribute in prose. "Per the matrix..." and "(Source: ...)" forbidden. Chips were also removed from UI.
+
+## KB State (persistent at Google)
+- Store: `fileSearchStores/quinn-knowledge-base-geg6qsemdjxo` (display: "Quinn Knowledge Base")
+- Server-pinned via `PINNED_STORE_NAME` env-overridable constant in app.py
+- Docs indexed (3):
+  - TOTAL_DSCR_MATRIX.md  → PDF: /static/kb-pdfs/TQL_DSCR_GUIDE.pdf
+  - TQL_nonqmMatrix_1.md  → PDF: /static/kb-pdfs/TQL_nonqmMatrix_1.pdf
+  - TQL_uw_guides.md      → PDF: /static/kb-pdfs/TQL_uw_guides.pdf
+- Source folder: `C:\Users\beach\Downloads\KB_DOCS` (MD)
+- Source folder: `C:\Users\beach\Downloads\knowedgebase` (PDF)
+- Ingest command: `python _ingest_docs.py "<folder>"` — idempotent, skip-by-name
 
 ## Commands
 ```bash
-# Dev server (from C:\Users\beach\tqlembed20)
+# Dev server
 python -m uvicorn app:app --reload --port 8000
 
-# Install deps
-pip install -r requirements.txt
+# Ingest more docs (idempotent)
+python _ingest_docs.py "C:\path\to\new-docs"
 
-# CLI demo (no server needed)
-python main.py
+# Audit KB state
+python _audit_kb.py
 
-# Deploy to Vercel
+# Full reset (DELETES store + docs)
+python _reset_kb.py
+
+# Deploy
 npx vercel --prod --yes
 ```
 
 ## Technical Notes
-- Vercel auto-detected FastAPI; install command is `pip install -r requirements.txt`
-- Static files served via FastAPI StaticFiles at /static; index.html returned from GET /
-- Upload flow: multipart POST /api/upload → temp file → uploader.upload_direct → Gemini File Search Store
-- Operations (upload, import) are long-running; uploader._wait_for_operation polls every 5s
-- Store names in Gemini API format: "fileSearchStores/abc123" — always use full name, not display name
-- Citations returned in response.candidates[0].grounding_metadata.grounding_chunks
+- `src/query.py`: SYSTEM_INSTRUCTION is a multi-line triple-quoted string. `_build_config()` threads it into every `GenerateContentConfig`. `_call_with_retry()` handles 503/UNAVAILABLE with backoff (0s/1s/2.5s) then falls back to `gemini-2.5-flash-lite` once.
+- `app.py`: backend ignores client-sent `store_name`/`store_names`. Single source of truth. `_enrich_citations` still attaches `label`+`pdf_url` to citations even though frontend drops them — leaves the door open to re-surface PDFs without a backend change.
+- `static/index.html`: marked@12 via CDN. `marked.use({ renderer: { em(token) { return token.text; } } })` strips italic. `addAIMsg` no longer renders citation chips (signature kept for API compat).
+- Frontend never calls `/api/stores` for selection anymore; only `/api/store` to resolve the pinned name.
+- `_ingest_docs.py` checks existing docs first (by display_name) so re-running is safe.
 
 ## URLs
 - GitHub: https://github.com/mortava/tqlembed20
-- Vercel: https://tqlembed20-4ssgx9te4-james-projects-d94c6754.vercel.app
+- Vercel prod (latest): https://tqlembed20-mtv1vcb65-james-projects-d94c6754.vercel.app
 - Local: http://localhost:8000
-- TotalPricer (linked in UI): https://submit.tqltpo.com
+- TotalPricer (referenced in Quinn answers): https://submit.tqltpo.com
 
-## Recent Commits
+## Recent Commits (this session)
 ```
-e10edac chore: add .gitignore from Vercel link
-4070dea feat: Quinn UI + FastAPI server for Gemini File Search RAG
-fad32b4 feat: init Gemini File Search RAG project
+12acaac feat: strict markdown punctuation rules, no asterisks for bullets/italics
+1f7eda5 feat: footer rebrand, drop citation chips, markdown tables for row data
+9a7246b feat: drop inline source attribution from Quinn's prose
+d5ad4e0 feat: replace freshness footer with smart actionable closers
+4971773 feat: clickable citation chips link to broker-facing PDFs
+8c27ac6 feat: pin Quinn Knowledge Base store server-side, add batch uploader
+2fd1977 fix: retry + fallback on Gemini 503 UNAVAILABLE
+a5ef99c feat: wire Quinn v2 SYSTEM_INSTRUCTION into all query methods
 ```
 
-## Uncommitted Changes
-```
-?? .env              ← gitignored, has GEMINI_API_KEY
-?? UIdesign.md       ← design spec, not committed
-?? server_*.log      ← uvicorn logs, gitignored
-?? __pycache__/      ← gitignored
-```
+## Open Concerns
+- `.env` has ~40 unparseable lines (dotenv warnings on every run). Non-blocking but worth a cleanup. Likely unquoted special chars per `feedback_vercel_env_special_chars` memory.
+- Gemini's grounding metadata `title` field assumed to equal upload display_name. Confirmed via successful enrichment path in code, but since chips were removed there's no longer visible feedback to verify on each query.
