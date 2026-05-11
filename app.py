@@ -33,6 +33,35 @@ PINNED_STORE_NAME = os.getenv(
 )
 PINNED_STORE_DISPLAY = os.getenv("QUINN_STORE_DISPLAY", "Quinn Knowledge Base")
 
+# Map indexed doc display_name (what Gemini returns as citation title) → the
+# broker-facing PDF version. When a citation matches, the frontend renders the
+# chip as a clickable link that opens the PDF in a new tab.
+KB_DOC_MAP: dict[str, dict[str, str]] = {
+    "TOTAL_DSCR_MATRIX.md": {
+        "label": "TQL DSCR Guide",
+        "pdf_url": "/static/kb-pdfs/TQL_DSCR_GUIDE.pdf",
+    },
+    "TQL_nonqmMatrix_1.md": {
+        "label": "TQL Non-QM Matrix",
+        "pdf_url": "/static/kb-pdfs/TQL_nonqmMatrix_1.pdf",
+    },
+    "TQL_uw_guides.md": {
+        "label": "TQL Underwriting Guidelines",
+        "pdf_url": "/static/kb-pdfs/TQL_uw_guides.pdf",
+    },
+}
+
+
+def _enrich_citations(result: dict) -> dict:
+    """Add `label` and `pdf_url` to each citation whose title matches KB_DOC_MAP."""
+    for cite in result.get("citations") or []:
+        title = cite.get("title")
+        mapping = KB_DOC_MAP.get(title) if title else None
+        if mapping:
+            cite["label"] = mapping["label"]
+            cite["pdf_url"] = mapping["pdf_url"]
+    return result
+
 client = genai.Client(api_key=api_key)
 store_mgr = FileSearchStoreManager(client)
 uploader = FileUploader(client)
@@ -142,4 +171,17 @@ async def query(req: QueryRequest):
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-    return result
+    return _enrich_citations(result)
+
+
+# ── Resources (PDF index for any UI affordance) ──────────────────────────────
+
+@app.get("/api/resources")
+async def list_resources():
+    """List broker-facing PDF guides for direct download."""
+    return {
+        "resources": [
+            {"label": v["label"], "pdf_url": v["pdf_url"], "source_doc": k}
+            for k, v in KB_DOC_MAP.items()
+        ]
+    }

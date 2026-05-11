@@ -187,7 +187,15 @@
       font-size: 12px; color: var(--body-color);
       font-family: ui-monospace, monospace;
     }
-    .citation-chip::before { content: '↗'; color: var(--mute); }
+    .citation-link {
+      text-decoration: none;
+      color: var(--body-color);
+      transition: color 120ms ease, transform 120ms ease;
+      cursor: pointer;
+    }
+    .citation-link:hover { color: #000; }
+    .citation-link .ext-arrow { color: var(--mute); font-size: 11px; }
+    .citation-link:hover .ext-arrow { color: #000; }
 
     /* System msg */
     .sys-msg {
@@ -537,10 +545,20 @@ function addAIMsg(text, citations) {
 
   if (citations?.length) {
     html += `<div class="citations">`;
-    citations.slice(0,4).forEach((c,i) => {
-      const label = c.title || (c.text ? c.text.slice(0,55)+'…' : `Source ${i+1}`);
+    // Dedupe by label+page so we don't render the same PDF link 4 times.
+    const seen = new Set();
+    citations.slice(0,8).forEach((c,i) => {
+      const label = c.label || c.title || (c.text ? c.text.slice(0,55)+'…' : `Source ${i+1}`);
       const pg = c.page_number ? ` · p.${c.page_number}` : '';
-      html += `<div class="citation-chip">${esc(label)}${pg}</div>`;
+      const key = `${label}|${pg}|${c.pdf_url||''}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const text = `${esc(label)}${pg}`;
+      if (c.pdf_url) {
+        html += `<a class="citation-chip citation-link" href="${esc(c.pdf_url)}" target="_blank" rel="noopener">${text} <span class="ext-arrow">↗</span></a>`;
+      } else {
+        html += `<div class="citation-chip">${text}</div>`;
+      }
     });
     html += `</div>`;
   }
