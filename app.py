@@ -24,6 +24,15 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY not set in .env")
 
+# Quinn talks to exactly one File Search Store. Pinning the name server-side
+# means a buggy or stale frontend can never spawn a stray store or query the
+# wrong KB. Override via env var if you ever need to point at a staging store.
+PINNED_STORE_NAME = os.getenv(
+    "QUINN_STORE_NAME",
+    "fileSearchStores/quinn-knowledge-base-geg6qsemdjxo",
+)
+PINNED_STORE_DISPLAY = os.getenv("QUINN_STORE_DISPLAY", "Quinn Knowledge Base")
+
 client = genai.Client(api_key=api_key)
 store_mgr = FileSearchStoreManager(client)
 uploader = FileUploader(client)
@@ -38,12 +47,15 @@ async def root():
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
 
-# ── Stores ────────────────────────────────────────────────────────────────────
+# ── Pinned store ──────────────────────────────────────────────────────────────
 
-class CreateStoreRequest(BaseModel):
-    display_name: str
-    embedding_model: str = "models/gemini-embedding-2"
+@app.get("/api/store")
+async def pinned_store():
+    """Return the single pinned File Search Store the frontend should use."""
+    return {"name": PINNED_STORE_NAME, "display_name": PINNED_STORE_DISPLAY}
 
+
+# ── Stores (diagnostic only — frontend uses /api/store) ──────────────────────
 
 @app.get("/api/stores")
 async def list_stores():
@@ -56,26 +68,22 @@ async def list_stores():
     }
 
 
-@app.post("/api/stores")
-async def create_store(req: CreateStoreRequest):
-    store = await asyncio.to_thread(
-        functools.partial(store_mgr.create, req.display_name, req.embedding_model)
-    )
-    return {"name": store.name, "display_name": getattr(store, "display_name", store.name)}
-
-
-@app.delete("/api/stores")
-async def delete_store(name: str):
-    await asyncio.to_thread(functools.partial(store_mgr.delete, name))
-    return {"ok": True}
-
-
 @app.get("/api/stores/documents")
-async def list_documents(store_name: str):
+async def list_documents():
+    """List documents in the pinned store."""
     docs = await asyncio.to_thread(
-        functools.partial(store_mgr.list_documents, store_name)
+        functools.partial(store_mgr.list_documents, PINNED_STORE_NAME)
     )
-    return {"documents": [{"name": d.name} for d in docs]}
+    return {
+        "store_name": PINNED_STORE_NAME,
+        "documents": [
+            {
+                "name": d.name,
+                "display_name": getattr(d, "display_name", d.name),
+            }
+            for d in docs
+        ],
+    }
 
 
 # ── Upload ────────────────────────────────────────────────────────────────────
@@ -83,31 +91,41 @@ async def list_documents(store_name: str):
 @app.post("/api/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    store_name: str = Form(...),
-    display_name: str = Form(...),
+    display_name: Optional[str] = Form(None),
+    # store_name is accepted for backward compat but ignored — uploads always
+    # land in the pinned store.
+    store_name: Optional[str] = Form(None),
 ):
     suffix = Path(file.filename or "upload.txt").suffix or ".txt"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
 
+    resolved_display = display_name or file.filename or "upload"
     try:
         await asyncio.to_thread(
-            functools.partial(uploader.upload_direct, tmp_path, store_name, display_name)
+            functools.partial(
+                uploader.upload_direct,
+                tmp_path,
+                PINNED_STORE_NAME,
+                resolved_display,
+            )
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     finally:
         os.unlink(tmp_path)
 
-    return {"ok": True, "display_name": display_name}
+    return {"ok": True, "display_name": resolved_display, "store_name": PINNED_STORE_NAME}
 
 
 # ── Query ─────────────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
     question: str
-    store_names: list[str]
+    # store_names accepted for backward compat but ignored — queries always
+    # hit the pinned store.
+    store_names: Optional[list[str]] = None
     metadata_filter: Optional[str] = None
 
 
@@ -118,7 +136,7 @@ async def query(req: QueryRequest):
             functools.partial(
                 query_engine.ask_with_citations,
                 req.question,
-                req.store_names,
+                [PINNED_STORE_NAME],
                 req.metadata_filter,
             )
         )

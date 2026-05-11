@@ -350,10 +350,6 @@
   <header>
     <span class="logo">Quinn</span>
 
-    <select id="storeSelect" style="display:none" onchange="onStoreChange()">
-      <option value="">Select store…</option>
-    </select>
-
     <button class="btn-icon" title="Upload document" onclick="document.getElementById('fileInput').click()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -403,17 +399,6 @@
   </div>
 </div>
 
-<!-- ── New store modal ── -->
-<div class="modal-overlay" id="newStoreModal">
-  <div class="modal">
-    <div class="modal-title">New File Search Store</div>
-    <input type="text" class="modal-input" id="newStoreName" placeholder="Store name…" />
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="createStore()">Create</button>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -472,87 +457,30 @@ function scrollBottom() {
   ca.scrollTop = ca.scrollHeight;
 }
 
-/* ── Stores ── */
-async function loadStores() {
+/* ── Store (pinned by backend) ── */
+async function loadPinnedStore() {
   try {
-    const r = await fetch('/api/stores');
+    const r = await fetch('/api/store');
     const d = await r.json();
-    const sel = document.getElementById('storeSelect');
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">Select store…</option>';
-    (d.stores||[]).forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.name;
-      o.textContent = s.display_name || s.name;
-      sel.appendChild(o);
-    });
-    if (prev) sel.value = prev;
-  } catch { toast('Could not load stores'); }
-}
-
-function onStoreChange() {
-  const val = document.getElementById('storeSelect').value;
-  currentStore = val || null;
-  const btn = document.getElementById('sendBtn');
-  btn.disabled = !currentStore;
-
-  if (currentStore) sysMsg('Store connected. Ask a question or upload a document.');
-}
-
-
-function openModal() {
-  document.getElementById('newStoreModal').classList.add('open');
-  setTimeout(() => document.getElementById('newStoreName').focus(), 60);
-}
-function closeModal() {
-  document.getElementById('newStoreModal').classList.remove('open');
-  document.getElementById('newStoreName').value = '';
-}
-async function createStore() {
-  const name = document.getElementById('newStoreName').value.trim();
-  if (!name) return;
-  try {
-    const r = await fetch('/api/stores', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({display_name: name}),
-    });
-    const d = await r.json();
-    closeModal();
-    await loadStores();
-    document.getElementById('storeSelect').value = d.name;
-    onStoreChange();
-    toast('Store created');
-  } catch { toast('Failed to create store'); }
+    currentStore = d.name;
+  } catch { toast('Could not connect to Quinn Knowledge Base'); }
 }
 
 /* ── Upload ── */
 function onFileSelect(e) { uploadFiles(Array.from(e.target.files)); }
 
 async function uploadFiles(files) {
-  if (!currentStore) {
-    try {
-      const cr = await fetch('/api/stores', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({display_name: 'Quinn Default'}),
-      });
-      const nd = await cr.json();
-      currentStore = nd.name;
-    } catch {
-      toast('Could not connect to server'); return;
-    }
-  }
+  if (!currentStore) await loadPinnedStore();
+  if (!currentStore) { toast('Could not connect to server'); return; }
+
   const statusEl = document.getElementById('uploadStatus');
   const statusTx = document.getElementById('uploadText');
   statusEl.style.display = 'flex';
-
 
   for (const file of files) {
     statusTx.textContent = `Uploading ${file.name}…`;
     const form = new FormData();
     form.append('file', file);
-    form.append('store_name', currentStore);
     form.append('display_name', file.name);
     try {
       const r = await fetch('/api/upload', {method:'POST', body: form});
@@ -563,7 +491,6 @@ async function uploadFiles(files) {
   }
 
   statusEl.style.display = 'none';
-
   document.getElementById('fileInput').value = '';
 }
 
@@ -624,19 +551,8 @@ function addAIMsg(text, citations) {
 
 async function sendQuery() {
   if (isQuerying) return;
-  if (!currentStore) {
-    try {
-      const cr = await fetch('/api/stores', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({display_name: 'Quinn Default'}),
-      });
-      const nd = await cr.json();
-      currentStore = nd.name;
-    } catch {
-      toast('Could not connect to server'); return;
-    }
-  }
+  if (!currentStore) await loadPinnedStore();
+  if (!currentStore) { toast('Could not connect to server'); return; }
   const input = document.getElementById('queryInput');
   const q = input.value.trim();
   if (!q) return;
@@ -668,17 +584,6 @@ async function sendQuery() {
 
 }
 
-/* ── Keyboard ── */
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-  if (e.key === 'Enter' && document.getElementById('newStoreModal').classList.contains('open')) {
-    e.preventDefault(); createStore();
-  }
-});
-document.getElementById('newStoreModal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-
 /* ── Enable send when typing ── */
 document.getElementById('queryInput').addEventListener('input', () => {
   const btn = document.getElementById('sendBtn');
@@ -686,57 +591,9 @@ document.getElementById('queryInput').addEventListener('input', () => {
   btn.disabled = !val;
 });
 
-/* ── Init: auto-select or auto-create default store ── */
+/* ── Init: bind to the pinned Quinn Knowledge Base ── */
 async function init() {
-  try {
-    const r = await fetch('/api/stores');
-    const d = await r.json();
-    const stores = d.stores || [];
-    const sel = document.getElementById('storeSelect');
-    sel.innerHTML = '<option value="">Select store…</option>';
-    stores.forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.name;
-      o.textContent = s.display_name || s.name;
-      sel.appendChild(o);
-    });
-
-    if (stores.length > 0) {
-      // Auto-select first store
-      sel.value = stores[0].name;
-      onStoreChange();
-    } else {
-      // No stores — create a default one silently
-      const cr = await fetch('/api/stores', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({display_name: 'Quinn Default'}),
-      });
-      const nd = await cr.json();
-      const o = document.createElement('option');
-      o.value = nd.name; o.textContent = nd.display_name || nd.name;
-      sel.appendChild(o);
-      sel.value = nd.name;
-      onStoreChange();
-    }
-  } catch { toast('Could not connect to server'); }
-}
-
-async function loadStores() {
-  try {
-    const r = await fetch('/api/stores');
-    const d = await r.json();
-    const sel = document.getElementById('storeSelect');
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">Select store…</option>';
-    (d.stores||[]).forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.name;
-      o.textContent = s.display_name || s.name;
-      sel.appendChild(o);
-    });
-    if (prev) sel.value = prev;
-  } catch { toast('Could not load stores'); }
+  await loadPinnedStore();
 }
 
 init();
